@@ -1,11 +1,60 @@
 #include <stdlib.h> // Contains even thread safe functions like rand_r and drand48_x
 #include <stdio.h>
 
+// Threading includes
+#include <pthread.h>
+
+
+// intptr_t
+#include <stdint.h>
+
+#include <time.h>
+
+#define RAND_EXCLUSIVE_RANGE 501
+
+
+// TODO: INTRODUCE PROPER CONSTANTS
+
 int getticket (void);
 void await (int aenter);
 void advance (void);
 void debugMessage(char* message);
 void processParameters(char* argv[]);
+
+int getticket();
+
+void await (int aenter)
+{
+    printf ("Thread %d entered critical section.\n", aenter);
+}
+
+void advance()
+{
+    printf ("Thread that was in the critical section left it.\n");
+}
+
+
+unsigned int getRndThreadSleepTime(unsigned int *seed)
+{
+    return (rand_r(seed) % RAND_EXCLUSIVE_RANGE);
+}
+
+unsigned int sleepThread(unsigned int *seed)
+{
+
+    unsigned int sleepTime = getRndThreadSleepTime(seed); 
+
+    struct timespec time;
+    time.tv_sec = 0;
+    time.tv_nsec = (sleepTime * 1000000);
+
+    nanosleep(&time, NULL);
+
+    return sleepTime;
+}
+
+
+void *ThreadWork(void *threadId);
 
 #define DEBUG 1
 #define DEBUG_YELLOW "\x1B[33m"
@@ -29,6 +78,56 @@ void showHelp ()
     printf ("No other available options. Wrong parameters to the program shows this help.\n");
 }
 
+
+void *ThreadWork(void *threadId)
+{
+    int ticket;
+
+    long tid;
+    tid = (intptr_t) threadId;
+
+    printf ("Thread identifier #%ld was created and is now working!\n", tid);
+
+    // Prepare seed for random generator
+    unsigned int seed = (unsigned int) (time(NULL) + tid);
+
+
+    unsigned int debugSleepTimer1;
+    unsigned int debugSleepTimer2;
+
+
+    while ((ticket = getticket()) < P.passes)
+    {
+        // Initial sleep
+        debugSleepTimer1 = sleepThread(&seed);
+        printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer1);
+
+        // await to enter critical section
+        await(ticket);
+
+        // Print who is in critical section
+        printf("%d\t(%d)\n", ticket, (int) tid);
+
+        // advance to leave critical section
+        advance();
+
+        // Ending sleep
+        debugSleepTimer2 = sleepThread(&seed);
+        printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer2);
+    }
+
+
+    pthread_exit(NULL);
+}
+
+
+int lastticket = 0;
+int getticket()
+{
+    lastticket += 1;
+    return lastticket;
+}
+
 int main (int argc, char* argv[])
 {
     if (argc < 3)
@@ -47,9 +146,41 @@ int main (int argc, char* argv[])
         printf ("%s", DEBUG_DEFAULT);
     }
 
+    // Spawn threads
+    pthread_t threads[P.threadCount];
+    long threadCreationCode;
+    int i;
 
-    //int ticket;
-    //while ((ticket = getticket()) < P.)
+    for (i = 0; i < P.threadCount; i++)
+    {
+        threadCreationCode = pthread_create (&threads[i], NULL, ThreadWork, (void *)(intptr_t)i);
+        if (threadCreationCode)
+        {
+            printf ("ERROR; return code from pthread_create() is %ld\n", threadCreationCode);
+            exit (-1);
+        }
+    }
+
+    printf ("Some additional output from main thread...\n");
+
+    // Clean up threads
+    for (i = 0; i < P.threadCount; i++)
+    {
+        pthread_join (threads[i], NULL);
+        printf ("Thread %i was collected.\n", i);
+    }
+
+    printf ("Some additional output from main thread...\n");
+    
+    pthread_exit (NULL);
+
+    return 0;
+}
+
+
+void randomWait()
+{
+    // Prepare random number
 
 }
 
