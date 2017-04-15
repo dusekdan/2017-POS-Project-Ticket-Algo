@@ -11,56 +11,24 @@
 #include <time.h>
 
 #define RAND_EXCLUSIVE_RANGE 501
-
-
-// TODO: INTRODUCE PROPER CONSTANTS
-
-int getticket (void);
-void await (int aenter);
-void advance (void);
-void debugMessage(char* message);
-void processParameters(char* argv[]);
-
-int getticket();
-
-void await (int aenter)
-{
-    printf ("Thread %d entered critical section.\n", aenter);
-}
-
-void advance()
-{
-    printf ("Thread that was in the critical section left it.\n");
-}
-
-
-unsigned int getRndThreadSleepTime(unsigned int *seed)
-{
-    return (rand_r(seed) % RAND_EXCLUSIVE_RANGE);
-}
-
-unsigned int sleepThread(unsigned int *seed)
-{
-
-    unsigned int sleepTime = getRndThreadSleepTime(seed); 
-
-    struct timespec time;
-    time.tv_sec = 0;
-    time.tv_nsec = (sleepTime * 1000000);
-
-    nanosleep(&time, NULL);
-
-    return sleepTime;
-}
-
-
-void *ThreadWork(void *threadId);
-
 #define DEBUG 1
 #define DEBUG_YELLOW "\x1B[33m"
 #define DEBUG_DEFAULT "\x1B[0m"
 
 #define DECADIC_BASE 10
+
+// TODO: INTRODUCE PROPER CONSTANTS
+
+// Critical section entry mutex initialization 
+int getticket (void);
+void await (int aenter);
+void advance (void);
+void debugMessage(char* message);
+void processParameters(char* argv[]);
+int getticket();
+void *ThreadWork(void *threadId);
+unsigned int sleepThread(unsigned int *seed);
+void showHelp();
 
 struct Parameters
 {
@@ -70,13 +38,49 @@ struct Parameters
 
 struct Parameters P;
 
-void showHelp ()
+pthread_mutex_t entryMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t wakeCond = PTHREAD_COND_INITIALIZER;
+
+int currentTicket = 1;
+
+
+
+void await (int aenter)
 {
-    printf ("Ticket algorithm synchronization demo.\n\n");
-    printf ("Usage: ./XXX N M\n\n");
-    printf ("Creates N threads and simulates M number of total passes through critical section protected by ticket algorithm.\n\n");
-    printf ("No other available options. Wrong parameters to the program shows this help.\n");
+    // First thing to do is to prevent other threads from entering
+    if (pthread_mutex_lock(&entryMutex) != 0)
+    {
+        fprintf (stderr, "Error while using pthread_mutex_lock.\n");
+    }
+
+    while (currentTicket != aenter)
+    {
+        if (pthread_cond_wait(&wakeCond, &entryMutex) != 0)
+            fprintf(stderr, "Error while using pthread_cond_wait().\n");
+    }
+
+    //   Maybe any thread that calls this function will be freezed in case critical section is entered by other thread alreadye
+    //  printf ("Thread %d entered critical section.\n", aenter);
 }
+
+void advance ()
+{
+    if (pthread_mutex_unlock(&entryMutex) != 0)
+    {
+        fprintf (stderr, "Error while unlocking mutex.\n");
+    }
+    else
+    {
+        currentTicket++;
+        if (pthread_cond_broadcast(&wakeCond))
+        {
+            fprintf(stderr, "Waking broadcast error!\n");
+        }
+    }
+}
+
+
+
 
 
 void *ThreadWork(void *threadId)
@@ -86,7 +90,7 @@ void *ThreadWork(void *threadId)
     long tid;
     tid = (intptr_t) threadId;
 
-    printf ("Thread identifier #%ld was created and is now working!\n", tid);
+    //printf ("Thread identifier #%ld was created and is now working!\n", tid);
 
     // Prepare seed for random generator
     unsigned int seed = (unsigned int) (time(NULL) + tid);
@@ -100,20 +104,23 @@ void *ThreadWork(void *threadId)
     {
         // Initial sleep
         debugSleepTimer1 = sleepThread(&seed);
-        printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer1);
+        //printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer1);
 
         // await to enter critical section
         await(ticket);
+        //printf ("Thread #%ld passed through await() function.\n", tid);
+
 
         // Print who is in critical section
         printf("%d\t(%d)\n", ticket, (int) tid);
 
         // advance to leave critical section
         advance();
+        //printf ("Tread #%ld passed through advance() function.\n", tid);
 
         // Ending sleep
         debugSleepTimer2 = sleepThread(&seed);
-        printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer2);
+        //printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer2);
     }
 
 
@@ -167,7 +174,7 @@ int main (int argc, char* argv[])
     for (i = 0; i < P.threadCount; i++)
     {
         pthread_join (threads[i], NULL);
-        printf ("Thread %i was collected.\n", i);
+        //printf ("Thread %i was collected.\n", i);
     }
 
     printf ("Some additional output from main thread...\n");
@@ -177,12 +184,6 @@ int main (int argc, char* argv[])
     return 0;
 }
 
-
-void randomWait()
-{
-    // Prepare random number
-
-}
 
 void debugMessage(char* message)
 {
@@ -202,7 +203,6 @@ void processParameters(char* argv[])
 
     // Here should come some sort of a check whether this works.
     // TODO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure
-    // if ()
 
     if (argv[1])
         P.threadCount = strtol(argv[1], &endptr, DECADIC_BASE);
@@ -211,21 +211,29 @@ void processParameters(char* argv[])
         P.passes = strtol(argv[2], &endptr, DECADIC_BASE);
 }
 
-
-
-
-/*
-    
-    RECOMMENDED PROGRAM SKELETON
-
-while ((ticket = getticket()) < M) 
-{ 
-                                        // Pøidìlení lístku
-                                        // Náhodné èekání v intervalu <0,0 s, 0,5 s> 
-    await(ticket);                      //Vstup do KS 
-    printf("%d\t(%d)\n", ticket, id);   // fflush(stdout); 
-    advance();                          //Výstup z KS 
-                                        // Náhodné èekání v intervalu <0,0 s, 0,5 s> 
+unsigned int getRndThreadSleepTime(unsigned int *seed)
+{
+    return (rand_r(seed) % RAND_EXCLUSIVE_RANGE);
 }
 
-*/
+unsigned int sleepThread(unsigned int *seed)
+{
+
+    unsigned int sleepTime = getRndThreadSleepTime(seed); 
+
+    struct timespec time;
+    time.tv_sec = 0;
+    time.tv_nsec = (sleepTime * 1000000);
+
+    nanosleep(&time, NULL);
+
+    return sleepTime;
+}
+
+void showHelp ()
+{
+    printf ("Ticket algorithm synchronization demo.\n\n");
+    printf ("Usage: ./XXX N M\n\n");
+    printf ("Creates N threads and simulates M number of total passes through critical section protected by ticket algorithm.\n\n");
+    printf ("No other available options. Wrong parameters to the program shows this help.\n");
+}
