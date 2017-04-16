@@ -1,20 +1,13 @@
+#define _POSIX_C_SOURCE 199506L
+#define _XOPEN_SOURCE 500
+#define _XOPEN_SOURCE_EXTENDED 1
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <time.h>
 
-/*#ifndef _POSIX_C_SOURCE*/
-#define _POSIX_C_SOURCE 199506L
-/*#endif*/
-
-/*#ifndef _XOPEN_SOURCE*/
-#define _XOPEN_SOURCE 500
-/*#endif*/
-
-/*#ifndef _XOPEN_SOURCE_EXTENDED*/
-#define _XOPEN_SOURCE_EXTENDED 1
-/*#endif*/
 
 #define EXPECTED_NUMBER_OF_PARAMETERS 3
 #define RAND_EXCLUSIVE_RANGE 501
