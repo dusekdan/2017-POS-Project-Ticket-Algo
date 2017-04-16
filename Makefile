@@ -8,7 +8,7 @@
 TARGET = project.c
 
 all:
-	gcc -std=gnu99 -pedantic -Wall $(TARGET) -o project -lpthread
+	gcc -std=c11 -pedantic -Wall $(TARGET) -o project -lpthread
 
 
 run:

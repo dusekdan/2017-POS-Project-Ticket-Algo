@@ -4,6 +4,18 @@
 #include <stdint.h>
 #include <time.h>
 
+/*#ifndef _POSIX_C_SOURCE*/
+#define _POSIX_C_SOURCE 199506L
+/*#endif*/
+
+/*#ifndef _XOPEN_SOURCE*/
+#define _XOPEN_SOURCE 500
+/*#endif*/
+
+/*#ifndef _XOPEN_SOURCE_EXTENDED*/
+#define _XOPEN_SOURCE_EXTENDED 1
+/*#endif*/
+
 #define EXPECTED_NUMBER_OF_PARAMETERS 3
 #define RAND_EXCLUSIVE_RANGE 501
 #define NANOSEC_MULTIPLIER 1000000
@@ -13,15 +25,15 @@
 #define DEBUG 0
 
 int getticket (void);
+void *threadWork(void *threadId);
 void await (int aenter);
 void advance (void);
-void debugMessage(char* message);
-void processParameters(char* argv[]);
 int getticket();
-void *threadWork(void *threadId);
+void processParameters(char* argv[]);
 unsigned int sleepThread(unsigned int *seed);
-void showHelp();
 unsigned int getRndThreadSleepTime(unsigned int *seed);
+void showHelp();
+void debugMessage(char* message);
 
 struct Parameters
 {
@@ -55,10 +67,11 @@ int main (int argc, char* argv[])
         printf ("%s", DEBUG_DEFAULT);
     }
 
-    // Spawn threads, prepare counters
-    // TODO: Make this more GNU like? 
+    /* Spawn threads, prepare counters */
     pthread_t threads[P.threadCount];
-    long threadCreationCode;    // FUTURE-TODO: Use this to detect error code 11 (EAGAIN), wait for a bit then try again 
+    
+    /* FUTURE-TODO: Use this to detect error code 11 (EAGAIN), wait for a bit then try again */
+    long threadCreationCode;
     int i;
 
     for (i = 0; i < P.threadCount; i++)
@@ -71,7 +84,7 @@ int main (int argc, char* argv[])
         }
     }
 
-    // Clean up threads
+    /* Clean up threads */
     for (i = 0; i < P.threadCount; i++)
     {
         pthread_join (threads[i], NULL);
@@ -80,7 +93,7 @@ int main (int argc, char* argv[])
             printf ("Thread %i was collected.\n", i);
     }
     
-    // Ensure the rest of the threads is not killed off when main thread reaches this point
+    /* Ensure the rest of the threads is not killed off when main thread reaches this point */
     pthread_exit (NULL);
 
     return 0;
@@ -95,42 +108,43 @@ int main (int argc, char* argv[])
   */
 void *threadWork(void *threadId)
 {
-    // Thread-local variables
+    /* Thread-local variables */
     int ticket;
     long tid;
     tid = (intptr_t) threadId;
 
-    // Prepare seed for random generator
-    unsigned int seed = (unsigned int) (time(NULL) + tid);
+    /* Prepare seed for random generator */
+    unsigned int seed;
+    seed = (unsigned int) (time(NULL) + tid);
 
-    // Debug timing variables
+    /* Debug timing variables */
     unsigned int debugSleepTimer1;
     unsigned int debugSleepTimer2;
 
 
     while ((ticket = getticket()) <= P.passes)
     {
-        // Initial sleep
+        /* Initial sleep */
         debugSleepTimer1 = sleepThread(&seed);
         if (DEBUG)
             printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer1);
 
-        // Protect entry to critical section
+        /* Protect entry to critical section */
         await(ticket);
         if (DEBUG)
             printf ("Thread #%ld passed through await() function.\n", tid);
 
 
-        // Print who is in critical section
+        /* Print who is in critical section */
         printf("%d\t(%d)\n", ticket, (int) tid);
 
 
-        // Leavy protected critical section and allow next one in
+        /* Leavy protected critical section and allow next one in */
         advance();
         if (DEBUG)
             printf ("Tread #%ld passed through advance() function.\n", tid);
 
-        // Termination sleep
+        /* Termination sleep */
         debugSleepTimer2 = sleepThread(&seed);
         if (DEBUG)
             printf ("Thread #%ld was put to sleep for %ums\n", tid, debugSleepTimer2);
@@ -147,14 +161,14 @@ void *threadWork(void *threadId)
   */
 void await (int aenter)
 {
-    // First thing to do is to prevent other threads from entering
+    /* First thing to do is to prevent other threads from entering */
     if (pthread_mutex_lock(&entryMutex) != 0)
     {
         fprintf (stderr, "Error while using pthread_mutex_lock.\n");
     }
 
-    // Using while + passive waiting to protect critical zone as suggested on:
-    // https://computing.llnl.gov/tutorials/pthreads/
+    /* Using while + passive waiting to protect critical zone as suggested on:
+       https://computing.llnl.gov/tutorials/pthreads/                       */
     while (currentTicket != aenter)
     {
         if (pthread_cond_wait(&wakeCond, &entryMutex) != 0)
@@ -177,7 +191,7 @@ void advance ()
     }
     else
     {
-        // There is no need to lock mutex before incrementation, all other threads are asleep
+        /* There is no need to lock mutex before incrementation, all other threads are asleep */
         currentTicket++;
         if (pthread_cond_broadcast (&wakeCond))
         {
@@ -196,7 +210,7 @@ void advance ()
   */
 int getticket ()
 {
-    // Mutex-Protected ticket number incrementation
+    /* Mutex-Protected ticket number incrementation */
     pthread_mutex_lock (&ticketDistributionMutex);
     lastticket += 1;
     pthread_mutex_unlock (&ticketDistributionMutex);
@@ -214,8 +228,8 @@ void processParameters (char* argv[])
 
     char *endptr;
 
-    // Here should come some sort of a check whether this works.
-    // TODO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure
+    /* Here should come some sort of a check whether this works. 
+    TODO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure */
 
     if (argv[1])
         P.threadCount = strtol(argv[1], &endptr, DECADIC_BASE);
@@ -233,17 +247,17 @@ void processParameters (char* argv[])
   */
 unsigned int sleepThread (unsigned int *seed)
 {
-    // Get random sleep time from range
+    /* Get random sleep time from range */
     unsigned int sleepTime = getRndThreadSleepTime (seed);
 
-    // Compose timespec structure for nanosleep() function
+    /* Compose timespec structure for nanosleep() function */
     struct timespec time;
     time.tv_sec = 0;
     time.tv_nsec = (sleepTime * NANOSEC_MULTIPLIER);
 
     nanosleep (&time, NULL);
 
-    // Return amount of miliseconds that were slept (debug purposes, mainly)
+    /* Return amount of miliseconds that were slept (debug purposes, mainly) */
     return sleepTime;
 }
 

@@ -22,6 +22,8 @@ Thread safe functions:
 TODO: Ensure thread is explicitly created as joinable 
 TODO: Find out whether to call pthread_mutex_destroy() or not
 TODO: Ensure distribution of tickets is also thread safe
+TODO: Check that my sleeping is actually sleeping
+
 
 pthread.h? libc?
 
