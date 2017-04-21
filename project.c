@@ -93,6 +93,8 @@ int main (int argc, char* argv[])
 
     /* Free allocated memory as a good programmer I surely am */
     free(threads);
+    pthread_mutex_destroy(&ticketDistributionMutex);
+    pthread_mutex_destroy(&entryMutex);
 
     return 0;
 }
@@ -123,7 +125,7 @@ void *threadWork(void *threadId)
 
 
 
-    while ((ticket = getticket()) <= P.passes)
+    while ((ticket = getticket()) < P.passes)
     {
         /* Initial sleep */
         debugSleepTimer1 = sleepThread(&seed);
@@ -240,6 +242,9 @@ void processParameters (char* argv[])
     if (endptr == argv[1])
     {
         fprintf (stderr, "Invalid parameter provided for thread count.\n");
+
+        showHelp();
+
         exit(1);
     }
 
@@ -249,6 +254,9 @@ void processParameters (char* argv[])
     if (endptr == argv[2])
     {
         fprintf (stderr, "Invalid parameter provided for number of passes.\n");
+
+        showHelp();
+        
         exit(1);
     }
 }

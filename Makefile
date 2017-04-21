@@ -10,12 +10,19 @@ TARGET = project.c
 all:
 	gcc -ansi -pedantic -Wall $(TARGET) -o project -lpthread -O -g
 
+clean:
+	rm project
+
+
+
+
 
 run:
 	@./project 100 50
 
+reference-run:
+	@./project 1024 100
+
 wis-pack:
 	zip "xdusek21.zip" "project.c" "Makefile"
 
-clean:
-	rm project
