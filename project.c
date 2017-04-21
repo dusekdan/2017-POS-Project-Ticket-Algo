@@ -37,8 +37,8 @@ struct Parameters P;
 pthread_mutex_t ticketDistributionMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t entryMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t wakeCond = PTHREAD_COND_INITIALIZER;
-int currentTicket = 1;
-int lastticket = 0;
+int currentTicket = 0;
+int lastticket = -1;
 
 
 int main (int argc, char* argv[])
@@ -71,7 +71,7 @@ int main (int argc, char* argv[])
 
     for (i = 0; i < P.threadCount; i++)
     {
-        threadCreationCode = pthread_create (&threads[i], NULL, threadWork, (void *)(intptr_t)i);
+        threadCreationCode = pthread_create (&threads[i], NULL, threadWork, (void *)(intptr_t)(i+1));
         if (threadCreationCode)
         {
             fprintf (stderr, "ERROR; return code from pthread_create() is %ld\n", threadCreationCode);
