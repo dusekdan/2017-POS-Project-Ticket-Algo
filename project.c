@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include <time.h>
 
-
 #define EXPECTED_NUMBER_OF_PARAMETERS 3
 #define RAND_EXCLUSIVE_RANGE 501
 #define NANOSEC_MULTIPLIER 1000000
@@ -44,6 +43,12 @@ int lastticket = 0;
 
 int main (int argc, char* argv[])
 {
+    pthread_t* threads;
+
+    /* FUTURE-TODO: Use this to detect error code 11 (EAGAIN), wait for a bit then try again */
+    long threadCreationCode;
+    int i;
+    
     if (argc < EXPECTED_NUMBER_OF_PARAMETERS)
     {
         showHelp();
@@ -61,18 +66,15 @@ int main (int argc, char* argv[])
     }
 
     /* Spawn threads, prepare counters */
-    pthread_t threads[P.threadCount];
+    threads = (pthread_t*) malloc(P.threadCount*sizeof(pthread_t));
     
-    /* FUTURE-TODO: Use this to detect error code 11 (EAGAIN), wait for a bit then try again */
-    long threadCreationCode;
-    int i;
 
     for (i = 0; i < P.threadCount; i++)
     {
         threadCreationCode = pthread_create (&threads[i], NULL, threadWork, (void *)(intptr_t)i);
         if (threadCreationCode)
         {
-            printf ("ERROR; return code from pthread_create() is %ld\n", threadCreationCode);
+            fprintf (stderr, "ERROR; return code from pthread_create() is %ld\n", threadCreationCode);
             exit (-1);
         }
     }
@@ -89,6 +91,9 @@ int main (int argc, char* argv[])
     /* Ensure the rest of the threads is not killed off when main thread reaches this point */
     pthread_exit (NULL);
 
+    /* Free allocated memory as a good programmer I surely am */
+    free(threads);
+
     return 0;
 }
 
@@ -104,15 +109,18 @@ void *threadWork(void *threadId)
     /* Thread-local variables */
     int ticket;
     long tid;
-    tid = (intptr_t) threadId;
-
-    /* Prepare seed for random generator */
     unsigned int seed;
-    seed = (unsigned int) (time(NULL) + tid);
 
     /* Debug timing variables */
     unsigned int debugSleepTimer1;
     unsigned int debugSleepTimer2;
+    
+    
+    tid = (intptr_t) threadId;
+
+    /* Prepare seed for random generator */
+    seed = (unsigned int) (time(NULL) + tid);
+
 
 
     while ((ticket = getticket()) <= P.passes)
@@ -165,7 +173,7 @@ void await (int aenter)
     while (currentTicket != aenter)
     {
         if (pthread_cond_wait(&wakeCond, &entryMutex) != 0)
-            fprintf(stderr, "Error while using pthread_cond_wait().\n");
+            fprintf (stderr, "Error while using pthread_cond_wait().\n");
     }
 }
 
@@ -188,7 +196,7 @@ void advance ()
         currentTicket++;
         if (pthread_cond_broadcast (&wakeCond))
         {
-            fprintf(stderr, "Waking broadcast error!\n");
+            fprintf (stderr, "Waking broadcast error!\n");
         }
     }
 }
@@ -221,14 +229,28 @@ void processParameters (char* argv[])
 
     char *endptr;
 
-    /* Here should come some sort of a check whether this works. 
-    TODO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure */
+    /*
+        FUTURE-DO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure 
+        OR here: https://stackoverflow.com/questions/11279767 
+    */
 
     if (argv[1])
         P.threadCount = strtol(argv[1], &endptr, DECADIC_BASE);
 
+    if (endptr == argv[1])
+    {
+        fprintf (stderr, "Invalid parameter provided for thread count.\n");
+        exit(1);
+    }
+
     if (argv[2])
         P.passes = strtol(argv[2], &endptr, DECADIC_BASE);
+
+    if (endptr == argv[2])
+    {
+        fprintf (stderr, "Invalid parameter provided for number of passes.\n");
+        exit(1);
+    }
 }
 
 

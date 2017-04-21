@@ -8,12 +8,14 @@
 TARGET = project.c
 
 all:
-	gcc -std=c11 -pedantic -Wall $(TARGET) -o project -lpthread -O -g
+	gcc -ansi -pedantic -Wall $(TARGET) -o project -lpthread -O -g
 
 
 run:
 	@./project 100 50
 
+wis-pack:
+	zip "xdusek21.zip" "project.c" "Makefile"
 
 clean:
 	rm project
