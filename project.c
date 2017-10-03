@@ -48,7 +48,7 @@ int main (int argc, char* argv[])
     /* FUTURE-TODO: Use this to detect error code 11 (EAGAIN), wait for a bit then try again */
     long threadCreationCode;
     int i;
-    
+
     if (argc < EXPECTED_NUMBER_OF_PARAMETERS)
     {
         showHelp();
@@ -67,7 +67,7 @@ int main (int argc, char* argv[])
 
     /* Spawn threads, prepare counters */
     threads = (pthread_t*) malloc(P.threadCount*sizeof(pthread_t));
-    
+
 
     for (i = 0; i < P.threadCount; i++)
     {
@@ -83,11 +83,11 @@ int main (int argc, char* argv[])
     for (i = 0; i < P.threadCount; i++)
     {
         pthread_join (threads[i], NULL);
-        
+
         if (DEBUG)
             printf ("Thread %i was collected.\n", i);
     }
-    
+
     /* Ensure the rest of the threads is not killed off when main thread reaches this point */
     pthread_exit (NULL);
 
@@ -116,8 +116,8 @@ void *threadWork(void *threadId)
     /* Debug timing variables */
     unsigned int debugSleepTimer1;
     unsigned int debugSleepTimer2;
-    
-    
+
+
     tid = (intptr_t) threadId;
 
     /* Prepare seed for random generator */
@@ -217,7 +217,7 @@ int getticket ()
     pthread_mutex_lock (&ticketDistributionMutex);
     lastticket += 1;
     pthread_mutex_unlock (&ticketDistributionMutex);
-    
+
     return lastticket;
 }
 
@@ -232,8 +232,8 @@ void processParameters (char* argv[])
     char *endptr;
 
     /*
-        FUTURE-DO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure 
-        OR here: https://stackoverflow.com/questions/11279767 
+        FUTURE-DO: Sanitize the input and buffer underflow, inspiration here: http://stackoverflow.com/questions/26080829/detecting-strtol-failure
+        OR here: https://stackoverflow.com/questions/11279767
     */
 
     if (argv[1])
@@ -256,7 +256,7 @@ void processParameters (char* argv[])
         fprintf (stderr, "Invalid parameter provided for number of passes.\n");
 
         showHelp();
-        
+
         exit(1);
     }
 }
@@ -266,21 +266,21 @@ void processParameters (char* argv[])
   * sleepThread()
   * Sleeps thread for a random amount of time between 0.000s and 0.500s based on seed
   * unsigned int* seed - time based seed for a thread
-  * returns number of miliseconds that thread was put to sleep
+  * returns number of milliseconds that thread was put to sleep
   */
 unsigned int sleepThread (unsigned int *seed)
 {
     /* Get random sleep time from range */
     unsigned int sleepTime = getRndThreadSleepTime (seed);
 
-    /* Compose timespec structure for nanosleep() function */
+    /* Construct timespec structure for nanosleep() function */
     struct timespec time;
     time.tv_sec = 0;
     time.tv_nsec = (sleepTime * NANOSEC_MULTIPLIER);
 
     nanosleep (&time, NULL);
 
-    /* Return amount of miliseconds that were slept (debug purposes, mainly) */
+    /* Return amount of milliseconds that were slept (debug purposes, mainly) */
     return sleepTime;
 }
 
@@ -308,7 +308,7 @@ void showHelp ()
     printf ("Ticket algorithm synchronization demo.\n\n");
     printf ("Usage: ./XXX N M\n\n");
     printf ("Creates N threads and simulates M number of total passes through critical section protected by ticket algorithm.\n\n");
-    printf ("No other available options. Wrong parameters to the program shows this help.\n");
+    printf ("No other available options. Wrong parameters passed to the program shows this help.\n");
 }
 
 
